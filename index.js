@@ -8,11 +8,15 @@ import GoogleStrategy from "passport-google-oauth2";
 import session from "express-session";
 import env from "dotenv";
 
+// Initializing express
 const app = express();
 const port = 3000;
+// Number of salt rounds for hashing
 const saltRounds = 10;
+// Initializing env to read environment variables
 env.config();
 
+// Setting midlewares, static libraries, and initializing passport
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
@@ -26,6 +30,7 @@ app.use(express.static("public"));
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Initializing database client
 const db = new pg.Client({
   user: process.env.PG_USER,
   host: process.env.PG_HOST,
@@ -35,18 +40,25 @@ const db = new pg.Client({
 });
 db.connect();
 
+
+/* Configuring all http GET responses for backend */
+
+// Home page
 app.get("/", (req, res) => {
   res.render("home.ejs");
 });
 
+// Loging page
 app.get("/login", (req, res) => {
   res.render("login.ejs");
 });
 
+// Registering page
 app.get("/register", (req, res) => {
   res.render("register.ejs");
 });
 
+// Seting logout behavior and redirecting to home page
 app.get("/logout", (req, res) => {
   req.logout(function (err) {
     if (err) {
@@ -56,6 +68,7 @@ app.get("/logout", (req, res) => {
   });
 });
 
+// Main application page when user is loged in
 app.get("/secrets", (req, res) => {
   console.log(req.user);
   if (req.isAuthenticated()) {
@@ -65,6 +78,7 @@ app.get("/secrets", (req, res) => {
   }
 });
 
+// Set new secret page
 app.get("/submit", (req, res) => {
   if(req.isAuthenticated()) {
     res.render("submit.ejs");
@@ -73,6 +87,7 @@ app.get("/submit", (req, res) => {
   }
 });
 
+// Redirect to google authentication page
 app.get(
   "/auth/google",
   passport.authenticate("google", {
@@ -80,6 +95,8 @@ app.get(
   })
 );
 
+// Redirect to secrets main page when user loged in
+// after authenticating with google
 app.get(
   "/auth/google/secrets",
   passport.authenticate("google", {
@@ -88,6 +105,7 @@ app.get(
   })
 );
 
+// Local login (without using thired party like google).
 app.post(
   "/login",
   passport.authenticate("local", {
@@ -96,6 +114,9 @@ app.post(
   })
 );
 
+// Registering localy new user (without using thired party like google)
+// Password is encrypted using hashing and salting capabilities and 
+// inserted to the database.
 app.post("/register", async (req, res) => {
   const email = req.body.username;
   const password = req.body.password;
@@ -129,6 +150,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
+// Posting new secret (replacing the existing one).
 app.post("/submit", async (req, res) => {
   try {
     const result = await db.query("UPDATE users SET secret = $1 WHERE email = $2 RETURNING secret", [req.body.secret, req.user.email]);
@@ -138,6 +160,7 @@ app.post("/submit", async (req, res) => {
   }
 });
 
+// Local stratgy for loging in using passport library.
 passport.use(
   "local",
   new Strategy(async function verify(username, password, cb) {
@@ -169,6 +192,7 @@ passport.use(
   })
 );
 
+// Google stratgy for loging in (or registering) using passport library.
 passport.use(
   "google",
   new GoogleStrategy(
@@ -199,14 +223,15 @@ passport.use(
     }
   )
 );
+
 passport.serializeUser((user, cb) => {
   cb(null, user);
 });
-
 passport.deserializeUser((user, cb) => {
   cb(null, user);
 });
 
+// Activating server with predetermind port
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
