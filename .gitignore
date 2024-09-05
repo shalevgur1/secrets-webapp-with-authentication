@@ -2,3 +2,4 @@
 node_modules
 solution.js
 solution-queries.sql
+.DS_Store
